@@ -1,12 +1,33 @@
 {
-  "name": "macdesktoppet",
+  "name": "aibotpet",
   "version": "1.0.0",
-  "description": "Gabumon Desktop Pet",
+  "description": "AI Desktop Pet - Gabumon",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.koujiminamoto.aibotpet",
+    "productName": "AIBotPet",
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": "dmg"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "settings.json",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "extraResources": [],
+    "directories": {
+      "output": "dist"
+    }
   },
   "devDependencies": {
-    "electron": "^32.2.0"
+    "electron": "^32.2.0",
+    "electron-builder": "^26.8.1"
   }
 }

@@ -1,6 +1,6 @@
 # AIBotPet
 
-A desktop pet powered by AI. A pixel-art Gabumon lives on your screen — it walks, idles, reacts, and chats with you through any OpenAI-compatible API.
+A desktop pet powered by AI. Pixel-art characters live on your screen — they walk, idle, react, and chat with you through any OpenAI-compatible API. Supports web search so your pet can answer real-time questions.
 
 Built with Electron. No frameworks, just vanilla JS + Canvas.
 
@@ -8,10 +8,12 @@ Built with Electron. No frameworks, just vanilla JS + Canvas.
 
 ## Features
 
+- **Multi-pet support** — switch between Gabumon and Kirby (more can be added)
 - Transparent, frameless, always-on-top window
 - Sprite sheet animation engine with automatic background removal
-- Pet state machine: idle, walk, jump, taunt, hurt, win, blue blaster...
+- Pet state machine: idle, walk, jump, taunt, hurt, win, attack...
 - AI chat via any OpenAI-compatible endpoint
+- **LLM-driven web search** — the AI decides when to search (via PPIO Web Search API)
 - Chat bubble with typewriter effect
 - Smart chat positioning (flips above/below based on screen position)
 - Drag the pet anywhere on screen
@@ -41,17 +43,20 @@ npm start
 | **Right-click** | Open settings panel |
 | **Tray icon** | Settings / Quit |
 
-## Connecting AI
+## Settings
 
-Right-click the pet to open Settings. Fill in three fields:
+Right-click the pet to open Settings.
 
 | Field | Description |
 |---|---|
-| **API Base URL** | The API endpoint base URL |
+| **Pet** | Choose your pet (Gabumon / Kirby) |
+| **API Base URL** | The API endpoint base URL (without `/chat/completions`) |
 | **API Key** | Your API key (leave empty for local models) |
 | **Model** | Model name to use |
+| **Web Search Token** | PPIO API token for web search (optional) |
+| **Pet Scale** | Sprite display scale (1-5) |
 
-### Provider Examples
+### AI Provider Examples
 
 **OpenAI**
 ```
@@ -90,77 +95,57 @@ Model:    llama-3.3-70b-versatile
 
 Any service that implements the `/chat/completions` endpoint in OpenAI format will work.
 
-Settings are saved to `settings.json` in the project root.
+### Web Search
 
-## Replacing the Pet
+Fill in the **Web Search Token** field with a [PPIO](https://ppio.com) API token. The LLM will automatically decide when to search the web using function calling — for example when asked about weather, news, or real-time data. Leave empty to disable.
 
-You can replace Gabumon with any sprite sheet. Here's how:
+## Available Pets
 
-### 1. Prepare Your Sprite Sheet
+### Gabumon
+- Shy but loyal Digimon with Blue Blaster attack
+- Scale: 3x (48px base frames)
+- Animations: idle, walk, jump, taunt, hurt, recover, win, blueBlaster, shocked, and more
 
-- Create a PNG sprite sheet with your character's animations
-- Arrange frames in a grid (consistent cell size works best)
-- Use a solid background color (it will be auto-removed)
+### Kirby
+- Cheerful pink puffball from Dream Land
+- Scale: 5x (~22px base frames)
+- Animations: idle, walk, jump, taunt, hurt, win, inhale, float, run
 
-### 2. Replace the Image
+## Adding a New Pet
 
-```bash
-cp your-sprite-sheet.png assets/gabumon.png
-```
-
-### 3. Update Frame Coordinates
-
-Edit `src/sprite.js`. The key constants to change:
+Create a config file in `src/pets/yourpet.js`:
 
 ```javascript
-// Grid parameters - adjust to match your sprite sheet
-const ROW_Y = [141, 200, 259, ...];  // Y position of each row
-const ROW_H = [ 48,  48,  48, ...];  // Height of each row
-const CELL_W = 48;                    // Cell width
+window.PET_CONFIGS = window.PET_CONFIGS || {};
 
-// Frame helper: fr(column, rowIndex) returns {x, y, w, h}
-// Column position: x = 2 + column * 50
-```
-
-Then update the `ANIMATIONS` object. Each animation needs:
-
-```javascript
-const ANIMATIONS = {
-  idle: {
-    frames: frRow(startCol, rowIndex, frameCount),
-    speed: 180,  // ms per frame
-    loop: true,
+window.PET_CONFIGS.yourpet = {
+  name: 'YourPet',
+  spriteSheet: '../assets/yourpet.png',
+  scale: 3,
+  defaultFrameW: 48,
+  backgrounds: [              // colors to remove, or [] if already transparent
+    { r: 255, g: 0, b: 255 },
+  ],
+  bgTolerance: 12,
+  animations: {
+    idle: { frames: [{ x, y, w, h }, ...], speed: 180, loop: true },
+    walk: { frames: [...], speed: 110, loop: true },
+    // at minimum: idle and walk
   },
-  walk: {
-    frames: frRow(startCol, rowIndex, frameCount),
-    speed: 110,
-    loop: true,
+  emotionMap: {               // maps AI emotion tags to animation names
+    happy: 'win', sad: 'hurt', angry: 'attack', greeting: 'taunt', neutral: 'idle', ...
   },
-  // ... add more animations
+  stateTransitions: {         // what state to go to after a non-looping animation ends
+    hurt: 'idle',
+  },
+  greeting: "Hi! Double-click me to chat!",
+  clickReaction: { state: 'taunt', text: '*hello!*' },
+  chatPlaceholder: 'Talk to YourPet...',
+  systemPrompt: `You are YourPet... [emotion:TAG] ...`,
 };
 ```
 
-**Required animations** (used by the state machine): `idle`, `walk`
-
-**Optional animations** (triggered by AI emotions or clicks):
-`jump`, `taunt`, `hurt`, `recover`, `win`, `blueBlaster`, `shocked`
-
-### 4. Update Background Removal
-
-In `src/sprite.js`, find `_removeBackground()` and update the background colors:
-
-```javascript
-const backgrounds = [
-  { r: 101, g: 187, b: 239 }, // your sheet's background color
-  { r: 77,  g: 77,  b: 77 },  // cell background color (if any)
-];
-```
-
-**Tip:** Use an image editor's eyedropper tool to sample the exact RGB values of your sprite sheet's background.
-
-### 5. Customize the AI Personality
-
-Edit the `GABUMON_SYSTEM_PROMPT` in `src/ai-client.js` to match your new character's personality.
+Then add the script tag in `src/index.html` and a `<option>` in `src/settings.html`.
 
 ## Project Structure
 
@@ -168,39 +153,35 @@ Edit the `GABUMON_SYSTEM_PROMPT` in `src/ai-client.js` to match your new charact
 aibotpet/
 ├── main.js              # Electron main process (window, tray, IPC)
 ├── preload.js           # Context bridge (renderer ↔ main)
-├── settings.json        # User settings (API config)
 ├── src/
 │   ├── index.html       # Main page
 │   ├── styles.css       # Styles (pet window + settings)
-│   ├── renderer.js      # Game loop, input handling
-│   ├── sprite.js        # Sprite engine (load, animate, render)
+│   ├── renderer.js      # Game loop, input handling, pet switching
+│   ├── sprite.js        # Generic sprite engine (load, animate, render)
 │   ├── pet.js           # Behavior state machine
 │   ├── chat.js          # Chat bubble UI
-│   ├── ai-client.js     # OpenAI-compatible API client
-│   └── settings.html    # Settings page
+│   ├── ai-client.js     # AI client with function-calling web search
+│   ├── settings.html    # Settings page
+│   └── pets/
+│       ├── gabumon.js   # Gabumon config (frames, AI personality)
+│       └── kirby.js     # Kirby config (frames, AI personality)
 └── assets/
-    └── gabumon.png      # Sprite sheet
+    ├── gabumon.png      # Gabumon sprite sheet
+    └── kirby.png        # Kirby sprite sheet
 ```
 
 ## How It Works
 
-1. **Sprite Engine** loads the PNG, removes background colors (both blue sheet background and gray cell background), and renders frames to a Canvas with pixel-art scaling (3x)
+1. **Sprite Engine** loads the PNG, optionally removes background colors, and renders frames to a Canvas with pixel-art scaling
 
-2. **State Machine** drives autonomous behavior: idle for a few seconds, then walk in a random direction, occasionally jump or taunt. AI chat emotions override the current state
+2. **Pet Configs** define everything per-character: frame coordinates, animations, emotion mappings, AI personality, and UI strings
 
-3. **AI Client** sends messages to any OpenAI-compatible `/chat/completions` endpoint. The system prompt instructs the AI to include `[emotion:tag]` in responses, which maps to animations:
+3. **State Machine** drives autonomous behavior: idle → walk → jump → taunt. AI chat emotions override the current state via per-pet emotion maps
 
-   | Emotion Tag | Animation |
-   |---|---|
-   | `happy`, `excited` | win |
-   | `sad` | hurt |
-   | `angry`, `attack` | blueBlaster |
-   | `surprised` | shocked |
-   | `shy`, `greeting` | taunt |
-   | `neutral` | idle |
+4. **AI Client** sends messages to any OpenAI-compatible `/chat/completions` endpoint. When web search is enabled, it passes a `web_search` tool definition — the LLM decides whether to call it. If triggered, the client executes the PPIO search and feeds results back for a final response
 
-4. **Rendering** is bottom-aligned — sprites of different heights keep their feet anchored at the same position
+5. **Rendering** is bottom-aligned — sprites of different heights keep their feet anchored at the same position
 
 ## License
 
-Sprite sheet ripped by Ploaj (no credit needed). This project is for personal/educational use.
+Gabumon sprite sheet ripped by Ploaj. Kirby sprite sheet ripped by Jackster. This project is for personal/educational use.
