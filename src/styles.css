@@ -120,6 +120,7 @@ html, body {
   color: #99aacc;
 }
 
+.settings-page select,
 .settings-page input {
   display: block;
   width: 100%;
@@ -133,6 +134,7 @@ html, body {
   font-family: 'Courier New', monospace;
 }
 
+.settings-page select:focus,
 .settings-page input:focus {
   outline: none;
   border-color: #5588cc;

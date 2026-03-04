@@ -6,7 +6,6 @@
   const canvas = document.getElementById('pet-canvas');
   const chatContainer = document.getElementById('chat-container');
 
-  // Canvas fills the window
   const CANVAS_W = 300;
   const CANVAS_H = 350;
   canvas.width = CANVAS_W;
@@ -19,25 +18,48 @@
 
   // ─── Init components ───
   const sprite = new SpriteEngine(canvas);
-  sprite.scale = 3;
-  await sprite.load('../assets/gabumon.png');
-
   const pet = new PetStateMachine(sprite, api, CANVAS_W, CANVAS_H);
   const aiClient = new AIClient(api);
   const chatUI = new ChatUI(chatContainer);
 
+  let currentPetName = 'gabumon';
+
+  /** Load a pet by name */
+  async function loadPet(petName) {
+    const config = window.PET_CONFIGS[petName] || window.PET_CONFIGS.gabumon;
+    currentPetName = petName;
+
+    sprite.loadConfig(config);
+    await sprite.load(config.spriteSheet);
+    pet.loadConfig(config);
+    aiClient.loadPetConfig(config);
+    chatUI.input.placeholder = config.chatPlaceholder || 'Say something...';
+
+    sprite.play('idle');
+  }
+
+  // Load settings and initial pet
   const settings = await api.getSettings();
   aiClient.updateSettings(settings);
-  api.onSettingsUpdated((s) => aiClient.updateSettings(s));
+  await loadPet(settings.pet || 'gabumon');
+
+  // Listen for settings changes
+  api.onSettingsUpdated(async (s) => {
+    aiClient.updateSettings(s);
+    if (s.pet && s.pet !== currentPetName) {
+      await loadPet(s.pet);
+      const config = window.PET_CONFIGS[s.pet] || window.PET_CONFIGS.gabumon;
+      chatUI.showQuick(config.greeting, 3000);
+      pet.setState('taunt');
+    }
+  });
 
   // ─── Smart chat positioning ───
   function updateChatPosition() {
     if (pet.isNearTop) {
-      // Pet near top → chat below pet
       chatContainer.style.top = 'auto';
       chatContainer.style.bottom = '10px';
     } else {
-      // Default → chat above pet
       chatContainer.style.top = '10px';
       chatContainer.style.bottom = 'auto';
     }
@@ -82,7 +104,6 @@
       }
     }
 
-    // Drag uses screen coordinates
     pet.onMouseMove(e.screenX, e.screenY);
     if (pet.dragging) updateChatPosition();
   });
@@ -94,18 +115,18 @@
 
     if (pet.hitTest(cx, cy)) {
       if (e.detail === 2) {
-        // Double-click → toggle chat
         updateChatPosition();
         chatUI.toggle();
         if (chatUI.visible && !aiClient.isConfigured) {
           chatUI.showQuick('Right-click tray icon → Settings to configure API!', 3000);
         }
       } else {
-        // Single click → drag or reaction
         pet.onMouseDown(e.screenX, e.screenY, cx, cy);
         if (!pet.dragging) {
-          pet.setState('taunt');
-          chatUI.showQuick('*rawr!*', 1500);
+          const config = window.PET_CONFIGS[currentPetName];
+          const reaction = config?.clickReaction || { state: 'taunt', text: '*rawr!*' };
+          pet.setState(reaction.state);
+          chatUI.showQuick(reaction.text, 1500);
         }
       }
     }
@@ -153,9 +174,10 @@
     requestAnimationFrame(gameLoop);
   }
 
-  sprite.play('idle');
+  // Show initial greeting
+  const initialConfig = window.PET_CONFIGS[currentPetName];
   setTimeout(() => {
-    chatUI.showQuick('Hi! I\'m Gabumon! Double-click me to chat!', 3000);
+    chatUI.showQuick(initialConfig.greeting, 3000);
     pet.setState('taunt');
   }, 500);
 

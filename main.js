@@ -6,18 +6,21 @@ let mainWindow;
 let tray;
 let settingsWindow;
 
-const SETTINGS_PATH = path.join(__dirname, 'settings.json');
+// Settings stored in user data directory (writable, persists across updates)
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
 
 function loadSettings() {
   try {
-    return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+    return JSON.parse(fs.readFileSync(getSettingsPath(), 'utf-8'));
   } catch {
-    return { apiBaseURL: '', apiKey: '', model: '', petScale: 3, walkSpeed: 2 };
+    return { pet: 'gabumon', apiBaseURL: '', apiKey: '', model: '', webSearchToken: '', petScale: 3, walkSpeed: 2 };
   }
 }
 
 function saveSettings(settings) {
-  fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  fs.writeFileSync(getSettingsPath(), JSON.stringify(settings, null, 2));
 }
 
 function createMainWindow() {
@@ -59,12 +62,12 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 420,
-    height: 380,
+    height: 480,
     show: false,
     resizable: false,
     minimizable: false,
     maximizable: false,
-    title: 'Gabumon Settings',
+    title: 'Pet Settings',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -112,7 +115,7 @@ function createTray() {
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]);
-  tray.setToolTip('Gabumon Desktop Pet');
+  tray.setToolTip('Desktop Pet');
   tray.setContextMenu(contextMenu);
 }
 
@@ -150,7 +153,23 @@ ipcMain.handle('open-settings', () => {
   createSettingsWindow();
 });
 
-ipcMain.handle('ai-chat', async (_event, { messages, settings }) => {
+ipcMain.handle('web-search', async (_event, { query, token }) => {
+  const res = await fetch('https://api.ppio.com/v3/web-search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ query, summary: true, count: 5 }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Web search error ${res.status}: ${text}`);
+  }
+  return await res.json();
+});
+
+ipcMain.handle('ai-chat', async (_event, { messages, settings, tools }) => {
   const { apiBaseURL, apiKey, model } = settings;
   if (!apiBaseURL || !model) throw new Error('API not configured');
 
@@ -158,10 +177,13 @@ ipcMain.handle('ai-chat', async (_event, { messages, settings }) => {
   const headers = { 'Content-Type': 'application/json' };
   if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
+  const body = { model, messages, max_tokens: 300 };
+  if (tools && tools.length > 0) body.tools = tools;
+
   const res = await fetch(url, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ model, messages, max_tokens: 300 }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -170,7 +192,8 @@ ipcMain.handle('ai-chat', async (_event, { messages, settings }) => {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  // Return full message object so caller can detect tool_calls
+  return data.choices?.[0]?.message || { content: '' };
 });
 
 app.whenReady().then(() => {

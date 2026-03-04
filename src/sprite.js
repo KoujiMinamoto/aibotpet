@@ -1,12 +1,6 @@
 /**
- * Sprite Animation Engine for Gabumon sprite sheet
- * Handles: loading, background removal, frame definitions, rendering
- *
- * Sprite sheet analysis (1002 x 1130px):
- *   - Cell size: 48x48 (some rows 57 or 49)
- *   - Column spacing: 50px (48 cell + 2 gap), starting at x=2
- *   - Two background colors: light blue rgb(101,187,239) + gray rgb(77,77,77)
- *   - 18 columns, 18 animation rows
+ * Generic Sprite Animation Engine
+ * Loads a pet config, handles sprite sheet processing, frame rendering.
  */
 class SpriteEngine {
   constructor(canvas) {
@@ -21,6 +15,21 @@ class SpriteEngine {
     this.scale = 3;
     this.onAnimEnd = null;
     this.loaded = false;
+    this.animations = {};
+    this.backgrounds = [];
+    this.bgTolerance = 12;
+  }
+
+  /** Apply a pet config (animations, scale, background colors) */
+  loadConfig(config) {
+    this.animations = config.animations;
+    this.scale = config.scale;
+    this.backgrounds = config.backgrounds || [];
+    this.bgTolerance = config.bgTolerance || 12;
+    this.loaded = false;
+    this.currentAnim = 'idle';
+    this.currentFrame = 0;
+    this.elapsed = 0;
   }
 
   async load(src) {
@@ -28,7 +37,17 @@ class SpriteEngine {
       const img = new Image();
       img.onload = () => {
         this.spriteSheet = img;
-        this.processedSheet = this._removeBackground(img);
+        if (this.backgrounds.length > 0) {
+          this.processedSheet = this._removeBackground(img);
+        } else {
+          // Sheet already has transparency (e.g. Kirby), copy directly
+          const c = document.createElement('canvas');
+          c.width = img.width;
+          c.height = img.height;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          this.processedSheet = c;
+        }
         this.loaded = true;
         resolve();
       };
@@ -38,9 +57,8 @@ class SpriteEngine {
   }
 
   /**
-   * Remove BOTH background colors from the sprite sheet:
-   *   - Light blue rgb(101, 187, 239) — main sheet background
-   *   - Gray rgb(77, 77, 77) / rgb(78, 78, 78) — cell background
+   * Remove background colors from the sprite sheet.
+   * Colors and tolerance are set by loadConfig().
    */
   _removeBackground(img) {
     const c = document.createElement('canvas');
@@ -51,21 +69,15 @@ class SpriteEngine {
 
     const data = ctx.getImageData(0, 0, c.width, c.height);
     const px = data.data;
-
-    const backgrounds = [
-      { r: 101, g: 187, b: 239 }, // light blue background
-      { r: 77,  g: 77,  b: 77 },  // gray cell background
-      { r: 78,  g: 78,  b: 78 },  // gray variant
-    ];
-    const tolerance = 12;
+    const tolerance = this.bgTolerance;
 
     for (let i = 0; i < px.length; i += 4) {
       const r = px[i], g = px[i + 1], b = px[i + 2];
-      for (const bg of backgrounds) {
+      for (const bg of this.backgrounds) {
         if (Math.abs(r - bg.r) <= tolerance &&
             Math.abs(g - bg.g) <= tolerance &&
             Math.abs(b - bg.b) <= tolerance) {
-          px[i + 3] = 0; // make transparent
+          px[i + 3] = 0;
           break;
         }
       }
@@ -75,9 +87,13 @@ class SpriteEngine {
     return c;
   }
 
+  hasAnimation(name) {
+    return !!this.animations[name];
+  }
+
   play(animName, onEnd) {
     if (animName === this.currentAnim && this.currentFrame > 0) return;
-    if (!ANIMATIONS[animName]) return;
+    if (!this.animations[animName]) return;
     this.currentAnim = animName;
     this.currentFrame = 0;
     this.elapsed = 0;
@@ -85,7 +101,7 @@ class SpriteEngine {
   }
 
   forcePlay(animName, onEnd) {
-    if (!ANIMATIONS[animName]) return;
+    if (!this.animations[animName]) return;
     this.currentAnim = animName;
     this.currentFrame = 0;
     this.elapsed = 0;
@@ -94,7 +110,7 @@ class SpriteEngine {
 
   update(dt) {
     if (!this.loaded) return;
-    const anim = ANIMATIONS[this.currentAnim];
+    const anim = this.animations[this.currentAnim];
     if (!anim) return;
 
     this.elapsed += dt;
@@ -120,11 +136,10 @@ class SpriteEngine {
   /**
    * Render sprite bottom-aligned.
    * (x, groundY): x = left edge, groundY = bottom edge (feet position).
-   * Taller frames extend upward, keeping feet anchored.
    */
   render(x, groundY) {
     if (!this.loaded) return;
-    const anim = ANIMATIONS[this.currentAnim];
+    const anim = this.animations[this.currentAnim];
     if (!anim) return;
     const frame = anim.frames[this.currentFrame];
     if (!frame) return;
@@ -132,7 +147,7 @@ class SpriteEngine {
     const ctx = this.ctx;
     const w = frame.w * this.scale;
     const h = frame.h * this.scale;
-    const drawY = groundY - h; // bottom-align
+    const drawY = groundY - h;
 
     ctx.save();
 
@@ -156,164 +171,9 @@ class SpriteEngine {
   }
 
   getFrameSize() {
-    const anim = ANIMATIONS[this.currentAnim];
+    const anim = this.animations[this.currentAnim];
     if (!anim) return { w: 48, h: 48 };
     const frame = anim.frames[this.currentFrame] || anim.frames[0];
     return { w: frame.w * this.scale, h: frame.h * this.scale };
   }
 }
-
-// ─── Precise Frame Coordinates ─────────────────────────
-// Measured with pixel analysis of gabumon.png (1002 x 1130)
-//
-// Column positions: x = 2 + col * 50  (18 columns, each 48px wide, 2px gap)
-// Row Y positions (exact):
-const ROW_Y = [141, 200, 259, 318, 377, 436, 486, 545, 595, 645, 704, 763, 813, 871, 921, 971, 1030, 1080];
-const ROW_H = [ 48,  48,  48,  48,  48,  48,  48,  48,  48,  57,  48,  48,  57,  49,  48,  48,   48,   48];
-const CELL_W = 48;
-
-/** Create a frame rect for a given column and row index */
-function fr(col, rowIdx) {
-  return {
-    x: 2 + col * 50,
-    y: ROW_Y[rowIdx],
-    w: CELL_W,
-    h: ROW_H[rowIdx],
-  };
-}
-
-/** Create an array of frames across columns in one row */
-function frRow(startCol, rowIdx, count) {
-  const frames = [];
-  for (let i = 0; i < count; i++) {
-    frames.push(fr(startCol + i, rowIdx));
-  }
-  return frames;
-}
-
-/** Create frames with forced height (for rows with inconsistent heights) */
-function frRowH(startCol, rowIdx, count, forceH) {
-  const frames = [];
-  for (let i = 0; i < count; i++) {
-    frames.push({
-      x: 2 + (startCol + i) * 50,
-      y: ROW_Y[rowIdx],
-      w: CELL_W,
-      h: forceH,
-    });
-  }
-  return frames;
-}
-
-// Animation definitions mapped from sprite sheet labels + pixel analysis
-// Left side = cols 0-8, Right side = cols 10-17
-const ANIMATIONS = {
-  idle: {
-    frames: frRow(0, 0, 8),   // Row 0 left: 8 idle frames
-    speed: 180,
-    loop: true,
-  },
-  walk: {
-    frames: frRow(10, 0, 8),  // Row 0 right: 8 walk/run frames
-    speed: 110,
-    loop: true,
-  },
-  jump: {
-    frames: [
-      ...frRow(0, 1, 7),      // Row 1 left: 7 frames
-      ...frRow(0, 2, 3),      // Row 2 left: 3 frames (continuation)
-    ],
-    speed: 80,
-    loop: false,
-  },
-  stop: {
-    frames: frRow(10, 1, 3),  // Row 1 right: stop
-    speed: 150,
-    loop: false,
-  },
-  bounce: {
-    frames: frRow(13, 1, 2),  // Row 1 right: bounce (after stop)
-    speed: 120,
-    loop: true,
-  },
-  guard: {
-    frames: frRow(10, 2, 4),  // Row 2 right: guard
-    speed: 150,
-    loop: false,
-  },
-  hurt: {
-    frames: frRow(10, 3, 6),  // Row 3 right: Hurt 1
-    speed: 120,
-    loop: false,
-  },
-  hurt2: {
-    frames: frRow(10, 4, 4),  // Row 4 right: Hurt 2
-    speed: 120,
-    loop: false,
-  },
-  knockback: {
-    frames: [
-      ...frRow(10, 5, 8),     // Row 5 right: knockback row 1
-      ...frRow(10, 6, 8),     // Row 6 right: knockback row 2
-    ],
-    speed: 80,
-    loop: false,
-  },
-  recover: {
-    frames: frRow(10, 8, 8),  // Row 8 right: recover
-    speed: 130,
-    loop: false,
-  },
-  shocked: {
-    frames: frRow(10, 9, 4),  // Row 9 right: shocked (h=57 natural, bottom-aligned)
-    speed: 120,
-    loop: false,
-  },
-  hornAttack: {
-    frames: [
-      ...frRow(0, 9, 8),      // Row 9 left
-      ...frRow(0, 10, 8),     // Row 10 left
-    ],
-    speed: 70,
-    loop: false,
-  },
-  stunnedBurned: {
-    frames: frRow(10, 10, 7), // Row 10 right
-    speed: 120,
-    loop: false,
-  },
-  crushNail: {
-    frames: [
-      ...frRow(0, 11, 8),     // Row 11 left
-      ...frRow(0, 12, 6),     // Row 12 left
-    ],
-    speed: 70,
-    loop: false,
-  },
-  taunt: {
-    frames: [
-      ...frRow(10, 11, 8),       // Row 11 right: taunt row 1 (h=48)
-      ...frRow(11, 12, 6),       // Row 12 right: skip col 10 (label text) and col 17 (artifact), h=57 natural
-    ],
-    speed: 100,
-    loop: false,
-  },
-  blueBlaster: {
-    frames: [
-      ...frRow(0, 14, 9),     // Row 14 left: blue blaster row 1
-      ...frRow(0, 15, 5),     // Row 15 left: blue blaster row 2
-    ],
-    speed: 90,
-    loop: false,
-  },
-  win: {
-    frames: frRow(0, 16, 8),  // Row 16 left: win
-    speed: 150,
-    loop: true,
-  },
-  lose: {
-    frames: frRow(10, 16, 8), // Row 16 right: lose
-    speed: 150,
-    loop: false,
-  },
-};
