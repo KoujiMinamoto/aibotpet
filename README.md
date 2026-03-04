@@ -93,6 +93,15 @@ API Key:  gsk_xxxxx
 Model:    llama-3.3-70b-versatile
 ```
 
+**[OpenClaw](https://openclaw.ai) (remote personal AI assistant)**
+```
+Base URL: https://your-openclaw-host:port/v1
+API Key:  your-openclaw-auth-token
+Model:    (any value — OpenClaw uses its own configured model)
+```
+
+OpenClaw is an open-source personal AI agent with persistent memory, skills, browser control, and 50+ integrations. When connected, your desktop pet becomes a front-end to your OpenClaw — it can do everything OpenClaw can (manage emails, calendar, files, run code, browse the web, etc.) while staying in character. Point the Base URL to your remote OpenClaw gateway and use the auth token from your OpenClaw config.
+
 Any service that implements the `/chat/completions` endpoint in OpenAI format will work.
 
 ### Web Search
