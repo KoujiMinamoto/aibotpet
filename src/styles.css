@@ -1,0 +1,160 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  font-family: 'Courier New', monospace;
+}
+
+#pet-container {
+  position: relative;
+  width: 300px;
+  height: 350px;
+}
+
+#pet-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 350px;
+}
+
+/* ─── Chat UI ─── */
+#chat-container {
+  position: absolute;
+  top: 10px;   /* dynamically toggled to bottom by renderer */
+  left: 10px;
+  right: 10px;
+  z-index: 10;
+}
+
+.chat-bubble {
+  background: rgba(20, 20, 40, 0.88);
+  border: 2px solid #5588cc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  color: #e0e8ff;
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: 100px;
+  overflow-y: auto;
+  word-wrap: break-word;
+  /* Pixel shadow */
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+  image-rendering: pixelated;
+}
+
+.chat-input-wrap {
+  display: flex;
+  gap: 4px;
+}
+
+.chat-input {
+  flex: 1;
+  background: rgba(20, 20, 40, 0.88);
+  border: 2px solid #5588cc;
+  border-radius: 4px;
+  color: #e0e8ff;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+}
+
+.chat-input::placeholder {
+  color: #6688aa;
+}
+
+.chat-input:focus {
+  border-color: #77aaff;
+}
+
+.chat-send {
+  background: #5588cc;
+  border: 2px solid #77aaff;
+  border-radius: 4px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  width: 30px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chat-send:hover {
+  background: #77aaff;
+}
+
+.chat-send:active {
+  background: #3366aa;
+}
+
+/* ─── Settings page ─── */
+.settings-page {
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e8ff;
+  height: 100vh;
+}
+
+.settings-page h2 {
+  margin-bottom: 16px;
+  color: #77aaff;
+}
+
+.settings-page label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #99aacc;
+}
+
+.settings-page input {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  margin-bottom: 14px;
+  background: #0d0d1a;
+  border: 1px solid #334;
+  border-radius: 4px;
+  color: #e0e8ff;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+}
+
+.settings-page input:focus {
+  outline: none;
+  border-color: #5588cc;
+}
+
+.settings-page button {
+  background: #5588cc;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 24px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.settings-page button:hover {
+  background: #77aaff;
+}
+
+.settings-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #77cc77;
+}
