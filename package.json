@@ -11,13 +11,13 @@
     "appId": "com.koujiminamoto.aibotpet",
     "productName": "AIBotPet",
     "mac": {
+      "icon": "assets/icon.icns",
       "category": "public.app-category.entertainment",
       "target": ["dir", "zip"]
     },
     "files": [
       "main.js",
       "preload.js",
-      "settings.json",
       "src/**/*",
       "assets/**/*"
     ],

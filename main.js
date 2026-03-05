@@ -88,26 +88,8 @@ function createSettingsWindow() {
 }
 
 function createTray() {
-  // Create a small 16x16 tray icon programmatically
-  const iconSize = 16;
-  const canvas = Buffer.alloc(iconSize * iconSize * 4);
-  for (let y = 0; y < iconSize; y++) {
-    for (let x = 0; x < iconSize; x++) {
-      const i = (y * iconSize + x) * 4;
-      // Simple "G" shape in blue/yellow (Gabumon colors)
-      const inCircle = Math.hypot(x - 8, y - 8) < 7 && Math.hypot(x - 8, y - 8) > 4;
-      const inBar = y > 6 && y < 12 && x > 7 && x < 12;
-      if (inCircle || inBar) {
-        canvas[i] = 70;      // R
-        canvas[i + 1] = 130; // G
-        canvas[i + 2] = 210; // B
-        canvas[i + 3] = 255; // A
-      } else {
-        canvas[i + 3] = 0; // transparent
-      }
-    }
-  }
-  const icon = nativeImage.createFromBuffer(canvas, { width: iconSize, height: iconSize });
+  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray-icon.png'));
+  icon.setTemplateImage(false);
 
   tray = new Tray(icon);
   const contextMenu = Menu.buildFromTemplate([
