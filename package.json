@@ -12,7 +12,7 @@
     "productName": "AIBotPet",
     "mac": {
       "category": "public.app-category.entertainment",
-      "target": "dmg"
+      "target": ["dir", "zip"]
     },
     "files": [
       "main.js",
